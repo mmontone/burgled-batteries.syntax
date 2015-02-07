@@ -23,13 +23,13 @@
   (apply #'call* object (cons method args)))
 
 (defun is-none (x)
-  (cffi:pointer-eq x python::+none+))
+  (cffi:pointer-eq x burgled-batteries::+none+))
 
 (defun is-true (x)
-  (cffi:pointer-eq x python::+true+))
+  (cffi:pointer-eq x burgled-batteries::+true+))
 
 (defun is-false (x)
-  (cffi:pointer-eq x python::+false+))
+  (cffi:pointer-eq x burgled-batteries::+false+))
 
 (defun py-slot-value (object slot)
   (burgled-batteries::object.get-attr-string object slot))
