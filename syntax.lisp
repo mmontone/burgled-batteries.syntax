@@ -8,6 +8,20 @@
 (defun ref* (name)
   (burgled-batteries::run* name))
 
+(defun call (object method &rest args)
+  (burgled-batteries::with-cpython-pointer (ptr (burgled-batteries::object.get-attr-string* object method))
+    (burgled-batteries::object.call-object ptr args)))
+
+(defun call* (object method &rest args)
+  (burgled-batteries::with-cpython-pointer (ptr (burgled-batteries::object.get-attr-string* object method))
+    (burgled-batteries::object.call-object* ptr args)))
+
+(defun send (method object &rest args)
+  (apply #'call object (cons method args)))
+
+(defun send* (method object &rest args)
+  (apply #'call* object (cons method args)))
+
 (defun is-none (x)
   (cffi:pointer-eq x python::+none+))
 
@@ -327,7 +341,7 @@
        ,dict)))
 
 (defmethod compile-expression% ((type (eql :python-reference)) expression)
-  `(burgled-batteries::ref* ,(second expression)))
+  `(ref* ,(second expression)))
 
 (defmethod compile-expression% ((type (eql :lisp-reference)) expression)
   (read-from-string (second expression)))
@@ -374,7 +388,7 @@
                                                ,method-name))
                  (burgled-batteries::object.call* ,pyfun (list ,@(mapcar #'compile-expression unnamed-args))
                                        ,kwargs))))
-          `(burgled-batteries::call*
+          `(call*
             ,(compile-expression object)
             ,method-name
             ,@(mapcar #'compile-expression args))))))
