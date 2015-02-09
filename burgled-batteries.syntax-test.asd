@@ -3,7 +3,8 @@
   :description "Tests of embedded Python syntax for burgled-batteries"
   :author "Mariano Montone"
   :license "MIT"
-  :depends-on (#:burgled-batteries #:lift)
+  :depends-on (#:burgled-batteries.syntax
+	       #:lift)
   :components ((:module "t"
 			:components
 			((:file "package")
