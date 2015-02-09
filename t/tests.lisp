@@ -24,18 +24,14 @@
                     '(:literal-string "asdf"))
   (lift:ensure-error (esrap:parse 'python.syntax::literal-string "'"))
   (lift:ensure-error (esrap:parse 'python.syntax::literal-string "'''"))
-  ;; This is failing (quote scaping)
   (lift:ensure-same (esrap:parse 'python.syntax::literal-string "'\\''")
-                    '(:literal-string "'\\''"))
-
+                    '(:literal-string "\\'"))
   (lift:ensure-same (esrap:parse 'python.syntax::literal-string "\"\"")
                     '(:literal-string ""))
   (lift:ensure-same (esrap:parse 'python.syntax::literal-string "\"asdf\"")
                     '(:literal-string "asdf"))
   (lift:ensure-same (esrap:parse 'python.syntax::literal-string "\"foo bar\"")
                     '(:literal-string "foo bar"))
-
-  ;; This is failing (double quote scaping)
   (lift:ensure-same (esrap:parse 'python.syntax::literal-string "\"\\\"asdf\\\"\"")
                     '(:literal-string "\\\"asdf\\\"")))
 

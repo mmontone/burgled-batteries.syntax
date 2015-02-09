@@ -77,10 +77,12 @@
                (text (first match)))))
 
 (defrule literal-string (or (and #\'
-                                 (* (not #\'))
+                                 (* (or (and #\\ #\')
+					(not #\')))
                                  #\')
                             (and #\"
-                                 (* (not #\"))
+                                 (* (or (and #\\ #\" )
+					(not #\")))
                                  #\"))
   (:function (lambda (match)
                (list :literal-string (text (second match))))))
