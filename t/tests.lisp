@@ -6,7 +6,10 @@
   (:teardown (burgled-batteries:shutdown-python)))
 
 (defun run-tests ()
-  (lift:run-tests :suite 'burgled-batteries.syntax)) 
+  (lift::summarize-test-result 
+   (lift:run-tests :suite 'burgled-batteries.syntax)
+   t
+   :describe))
 
 (lift:addtest (burgled-batteries.syntax)
   literal-string
