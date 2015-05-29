@@ -99,16 +99,15 @@
 
 (defrule digit (character-ranges (#\0 #\9)))
 
-(defrule literal-long (and literal-integer (or #\l #\L))
+(defrule literal-long (and (? #\-) (+ digit) (or #\l #\L))
   (:function (lambda (match)
-	       (list :literal-long (cadar match)))))
+	       (let ((integer (parse-integer (text (first match) (second match)))))
+		 (list :literal-long integer)))))
 
 (defrule literal-integer (and (? #\-) (+ digit))
   (:function (lambda (match)
                (let ((integer (parse-integer (text (first match) (second match)))))
                  (list :literal-integer integer)))))
-
-(defrule literal-float (
 
 (defrule literal-list (and #\[ spacing*
                            (? (and expression (* (and spacing* #\, spacing* expression))))
