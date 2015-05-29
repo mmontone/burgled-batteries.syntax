@@ -97,10 +97,18 @@
                                           t
                                           nil)))))
 
-(defrule literal-integer (and (? #\-) (+ (character-ranges (#\0 #\9))))
+(defrule digit (character-ranges (#\0 #\9)))
+
+(defrule literal-long (and literal-integer (or #\l #\L))
+  (:function (lambda (match)
+	       (list :literal-long (cadar match)))))
+
+(defrule literal-integer (and (? #\-) (+ digit))
   (:function (lambda (match)
                (let ((integer (parse-integer (text (first match) (second match)))))
                  (list :literal-integer integer)))))
+
+(defrule literal-float (
 
 (defrule literal-list (and #\[ spacing*
                            (? (and expression (* (and spacing* #\, spacing* expression))))
@@ -166,8 +174,9 @@
                         literal-none
                         literal-boolean
                         literal-string
+			literal-long
                         literal-integer
-                        literal-list
+			literal-list
                         literal-dictionary
                         reference
                         lisp-expression
@@ -325,6 +334,9 @@
 
 (defmethod compile-expression% ((type (eql :literal-integer)) expression)
   `(burgled-batteries::number.int* ,(second expression)))
+
+(defmethod compile-expression% ((type (eql :literal-long)) expression)
+  `(burgled-batteries::number.long* ,(second expression)))
 
 (defmethod compile-expression% ((type (eql :literal-list)) expression)
   (alexandria:with-unique-names (list)

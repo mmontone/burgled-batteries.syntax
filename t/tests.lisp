@@ -46,7 +46,9 @@
                     '(:literal-integer -234))
   (lift:ensure-same (python.syntax::parse-python "a234")
                     '(:python-reference "a234"))
-  (lift:ensure-error (python.syntax::parse-python "234asdf")))
+  (lift:ensure-error (python.syntax::parse-python "234asdf"))
+  (lift:ensure-same (python.syntax::parse-python "234L")
+		    '(:literal-long 234)))
 
 (lift:addtest (burgled-batteries.syntax)
   transform-syntax
