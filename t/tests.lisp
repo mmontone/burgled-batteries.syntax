@@ -51,6 +51,25 @@
 		    '(:literal-long 234)))
 
 (lift:addtest (burgled-batteries.syntax)
+  literal-float
+  (lift:ensure-same (python.syntax::parse-python "2.3")
+		    '(:literal-float 2.3))
+  (lift:ensure-same (python.syntax::parse-python "-2.3")
+		    '(:literal-float -2.3))
+  (lift:ensure-same (python.syntax::parse-python "-2.0")
+		    '(:literal-float -2.0))
+  (lift:ensure-same (python.syntax::parse-python ".33")
+		    '(:literal-float .33))
+  (lift:ensure-same (python.syntax::parse-python "-.44")
+		    '(:literal-float -.44))  
+  (lift:ensure-same (python.syntax::parse-python "-10.0e2")
+		    '(:literal-float -1000.0))
+  (lift:ensure-same (python.syntax::parse-python "10.0e2")
+		    '(:literal-float 1000.0))
+  (lift:ensure-same (python.syntax::parse-python "100.0e-2")
+		    '(:literal-float 1.0)))
+
+(lift:addtest (burgled-batteries.syntax)
   transform-syntax
   (lift:ensure-same (python.syntax::parse-python "^'asdf'")
                     '(:TRANSFORM (:LITERAL-STRING "asdf")))

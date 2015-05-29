@@ -99,15 +99,33 @@
 
 (defrule digit (character-ranges (#\0 #\9)))
 
-(defrule literal-long (and (? #\-) (+ digit) (or #\l #\L))
+(defrule integer (and (? (or #\- #\+)) (+ digit))
   (:function (lambda (match)
-	       (let ((integer (parse-integer (text (first match) (second match)))))
-		 (list :literal-long integer)))))
+	       (parse-integer (text (first match) (second match))))))
 
-(defrule literal-integer (and (? #\-) (+ digit))
+(defrule literal-long (and integer (or #\l #\L))
   (:function (lambda (match)
-               (let ((integer (parse-integer (text (first match) (second match)))))
-                 (list :literal-integer integer)))))
+	       (list :literal-long (first match)))))
+
+(defrule literal-integer integer
+  (:function (lambda (match)
+	       (list :literal-integer match))))
+
+(defrule literal-float (or exponent-float point-float)
+  (:function (lambda (match)
+	       (list :literal-float match))))
+
+(defrule point-float (and (? (or #\- #\+)) (* digit) #\. (+ digit))
+  (:function (lambda (match)
+	       (read-from-string (apply #'text match)))))
+
+(defrule exponent-float (and (or point-float integer)
+			     (or #\e #\E) 
+			     integer)
+  (:function (lambda (match)
+	       (* (first match)
+		  (expt 10
+			(third match))))))
 
 (defrule literal-list (and #\[ spacing*
                            (? (and expression (* (and spacing* #\, spacing* expression))))
@@ -165,18 +183,19 @@
   (:function (lambda (match)
                (list :transform (second match)))))
 
-(defrule expression (or assignment
-                        method-call
-                        property-access
-                        index-access
-                        function-call
-                        literal-none
+(defrule expression (or literal-none
                         literal-boolean
                         literal-string
+			literal-float
 			literal-long
                         literal-integer
 			literal-list
                         literal-dictionary
+			assignment
+                        method-call
+                        property-access
+                        index-access
+                        function-call
                         reference
                         lisp-expression
                         transform))
@@ -336,6 +355,9 @@
 
 (defmethod compile-expression% ((type (eql :literal-long)) expression)
   `(burgled-batteries::number.long* ,(second expression)))
+
+(defmethod compile-expression% ((type (eql :literal-float)) expression)
+  `(burgled-batteries::number.float* ,(coerce (second expression) 'double-float)))
 
 (defmethod compile-expression% ((type (eql :literal-list)) expression)
   (alexandria:with-unique-names (list)
