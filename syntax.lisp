@@ -389,7 +389,7 @@
          (if (equalp (first arg) :named-arg)
              (push arg named-args)
              (push arg unnamed-args)))
-    (values unnamed-args named-args)))
+    (values (nreverse unnamed-args) (nreverse named-args))))
 
 (defmethod compile-expression% ((type (eql :function-call)) expression)
   (destructuring-bind (function-name args) (cdr expression)
