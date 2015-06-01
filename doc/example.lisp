@@ -1,7 +1,9 @@
 (defpackage :python.syntax-example
   (:use :cl)
-  (:export :run-calendar
-	   :fetch-feed))
+  (:export :calendar
+	   :fetch-feed
+	   :plot1
+	   :plot2))
 
 (in-package :python.syntax-example)
 
@@ -16,7 +18,7 @@
 	 [^feedparser.parse($url)])
     (burgled-batteries:shutdown-python)))
 
-(defun run-calendar ()
+(defun calendar ()
   (burgled-batteries:startup-python)
   (burgled-batteries:import "icalendar")
   (burgled-batteries:import "datetime")
@@ -52,4 +54,26 @@
 	     [^$cal.to_ical()])))
     (burgled-batteries:shutdown-python)))
 
+(defun plot1 ()
+  (burgled-batteries:startup-python)
+  (burgled-batteries:run "import matplotlib.pyplot as plt")
+  (unwind-protect
+       (let* (($x (list 1.0d0 2.0d0 3.0d0 4.0d0)) 
+	      ($y (map 'list #'(lambda (x) (* x x)) $x)))
+	 (progn
+	   [plt.plot($x, $y, "-" , linewidth=5)]
+	   [plt.show()]))
+    (burgled-batteries:shutdown-python)))
 
+(defun plot2 ()
+  (burgled-batteries:startup-python)
+  (burgled-batteries:run "import matplotlib.pyplot as plt")
+  (unwind-protect
+       (let* (($x (list 1.0d0 2.0d0 3.0d0 4.0d0)) 
+	      ($y (map 'list #'(lambda (x) (* x x)) $x))
+	      ($args (list $x $y "-"))
+	      ($kwargs (list "linewidth" 5)))
+	 (progn
+	   [plt.plot(*$args, **$kwargs)]
+	   [plt.show()]))
+    (burgled-batteries:shutdown-python)))

@@ -393,7 +393,17 @@
 (defmacro push-last (thing list)
   `(setf ,list (append ,list (list ,thing))))
 
-(defun split-args (args body)
+(defun split-args (args)
+  (let ((unnamed-args nil)
+        (named-args nil))
+    (loop for arg in args
+       do
+         (if (equalp (first arg) :named-arg)
+             (push arg named-args)
+             (push arg unnamed-args)))
+    (values (nreverse unnamed-args) (nreverse named-args))))
+
+(defun call-with-split-args (args body)
   (alexandria:with-unique-names (unnamed-args named-args)
     `(let ((,unnamed-args nil)
 	   (,named-args (make-hash-table)))
@@ -409,8 +419,11 @@
 		 `(loop :with kwargs := ,(compile-expression (second arg))
 		     :for key :in kwargs
 		     :for value :in (rest kwargs)
+		     :for python-key = (if (stringp key)
+					   key
+					   (string-downcase (string key)))
 		     :do
-		     (setf (gethash (string-downcase (string key)) ,named-args)
+		     (setf (gethash python-key ,named-args)
 			   value)))
 		(t ;; Unnamed arg
 		 `(push-last ,(compile-expression arg) ,unnamed-args))))
@@ -419,29 +432,81 @@
 (defmethod compile-expression% ((type (eql :function-call)) expression)
   (alexandria:with-unique-names (pyfun)
     (destructuring-bind (function-name args) (cdr expression)
-      (split-args args
-		  (lambda (unnamed-args named-args)
-		    `(burgled-batteries::with-cpython-pointer 
-			 (,pyfun (burgled-batteries::%get-function ,function-name))
-		       (burgled-batteries::object.call* 
-			,pyfun 
-			,unnamed-args
-			,named-args)))))))
+      (cond 
+	((or (member :args-splice args :key #'first)
+	     (member :kwargs-splice args :key #'first))
+	 ;; In this case, there are arguments to splice
+	 (call-with-split-args args
+			       (lambda (unnamed-args named-args)
+				 `(burgled-batteries::with-cpython-pointer 
+				      (,pyfun (burgled-batteries::%get-function ,function-name))
+				    (burgled-batteries::object.call* 
+				     ,pyfun 
+				     ,unnamed-args
+				     ,named-args)))))
+	((member :named-arg args :key #'first)
+	 ;; There are named arguments to handle
+	 (multiple-value-bind (unnamed-args named-args) (split-args args)
+	   (alexandria:with-unique-names (kwargs)
+	     `(let ((,kwargs (make-hash-table)))
+		,@(loop for arg in named-args
+		     collect
+		       `(setf (gethash ,(second arg) ,kwargs)
+			      ,(compile-expression (third arg))))
+		(burgled-batteries::with-cpython-pointer 
+		    (,pyfun (burgled-batteries::%get-function ,function-name))
+		  (burgled-batteries::object.call* 
+		   ,pyfun 
+		   (list ,@(mapcar #'compile-expression unnamed-args))
+		   ,kwargs))))))
+	(t
+	 ;; All arguments are simple unnamed parameters
+	 `(burgled-batteries::pyapply* 
+	   ,function-name
+	   ,@(mapcar #'compile-expression args)))))))
 
 (defmethod compile-expression% ((type (eql :method-call)) expression)
   (alexandria:with-unique-names (pyfun)
     (destructuring-bind (object method-name args) (cdr expression)
-      (split-args args
-		  (lambda (unnamed-args named-args)
-		    `(burgled-batteries::with-cpython-pointer 
-			 (,pyfun
-			  (burgled-batteries::object.get-attr-string*
-			   ,(compile-expression object)
-			   ,method-name))
-		       (burgled-batteries::object.call* 
-			,pyfun 
-			,unnamed-args
-			,named-args)))))))
+      (cond 
+	((or (member :args-splice args :key #'first)
+	     (member :kwargs-splice args :key #'first))
+	 ;; In this case, there are arguments to splice
+	 (call-with-split-args args
+			       (lambda (unnamed-args named-args)
+				 `(burgled-batteries::with-cpython-pointer 
+				      (,pyfun
+				       (burgled-batteries::object.get-attr-string*
+					,(compile-expression object)
+					,method-name))
+				    (burgled-batteries::object.call* 
+				     ,pyfun 
+				     ,unnamed-args
+				     ,named-args)))))
+	((member :named-arg args :key #'first)
+	 ;; There are named arguments to handle
+	 (multiple-value-bind (unnamed-args named-args) (split-args args)
+	   (alexandria:with-unique-names (kwargs)
+	     `(let ((,kwargs (make-hash-table)))
+		,@(loop for named-arg in named-args
+		     collect
+		       `(setf (gethash ,(second named-arg) ,kwargs)
+			      ,(compile-expression (third named-arg))))
+		(burgled-batteries::with-cpython-pointer 
+		    (,pyfun
+		     (burgled-batteries::object.get-attr-string*
+		      ,(compile-expression object)
+		      ,method-name))
+		  (burgled-batteries::object.call* 
+		   ,pyfun 
+		   (list ,@(mapcar #'compile-expression unnamed-args))
+		   ,kwargs))))))
+	(t
+	 ;; All arguments are simple unnamed parameters
+	 `(call*
+	   ,(compile-expression object)
+	   ,method-name
+	   ,@(mapcar #'compile-expression args)))))))	
 
 (defmethod compile-expression% ((type (eql :property-access)) expression)
   (destructuring-bind (object property) (cdr expression)
