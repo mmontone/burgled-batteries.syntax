@@ -252,7 +252,16 @@
 
 (defrule method-name python-name)
 
-(defrule arg expression)
+(defrule args-splice (and #\* expression)
+  (:function (lambda (match)
+	       (list :args-splice (second match)))))
+
+(defrule kwargs-splice (and #\* #\* expression)
+  (:function (lambda (match)
+	       (list :kwargs-splice (third match)))))
+
+(defrule arg (or kwargs-splice args-splice expression))
+
 (defrule kwarg (and python-name #\= expression)
   (:function (lambda (match)
                (list :named-arg
@@ -381,59 +390,58 @@
 (defmethod compile-expression% ((type (eql :lisp-reference)) expression)
   (read-from-string (second expression)))
 
-(defun split-args (args)
-  (let ((unnamed-args nil)
-        (named-args nil))
-    (loop for arg in args
-       do
-         (if (equalp (first arg) :named-arg)
-             (push arg named-args)
-             (push arg unnamed-args)))
-    (values (nreverse unnamed-args) (nreverse named-args))))
+(defmacro push-last (thing list)
+  `(setf ,list (append ,list (list ,thing))))
+
+(defun split-args (args body)
+  (alexandria:with-unique-names (unnamed-args named-args)
+    `(let ((,unnamed-args nil)
+	   (,named-args (make-hash-table)))
+       ,@(loop for arg in args
+	    collect
+	      (case (first arg)
+		(:named-arg
+		 `(setf (gethash ,(second arg) ,named-args)
+			,(compile-expression (third arg))))
+		(:args-splice
+		 `(setf ,unnamed-args (append ,unnamed-args ,(compile-expression (second arg)))))
+		(:kwargs-splice
+		 `(loop :with kwargs := ,(compile-expression (second arg))
+		     :for key :in kwargs
+		     :for value :in (rest kwargs)
+		     :do
+		     (setf (gethash (string-downcase (string key)) ,named-args)
+			   value)))
+		(t ;; Unnamed arg
+		 `(push-last ,(compile-expression arg) ,unnamed-args))))
+       ,(funcall body unnamed-args named-args))))
 
 (defmethod compile-expression% ((type (eql :function-call)) expression)
-  (destructuring-bind (function-name args) (cdr expression)
-    (multiple-value-bind (unnamed-args named-args) (split-args args)
-      (if named-args
-          (alexandria:with-unique-names (kwargs pyfun)
-            `(let ((,kwargs (make-hash-table)))
-               ,@(loop for arg in named-args
-                    collect
-                      `(setf (gethash ,(second arg) ,kwargs)
-                             ,(compile-expression (third arg))))
-               (burgled-batteries::with-cpython-pointer 
-		   (,pyfun (burgled-batteries::%get-function ,function-name))
-                 (burgled-batteries::object.call* 
-		  ,pyfun 
-		  (list ,@(mapcar #'compile-expression unnamed-args))
-		  ,kwargs))))
-          `(burgled-batteries::pyapply* 
-	    ,function-name
-	    ,@(mapcar #'compile-expression unnamed-args))))))
+  (alexandria:with-unique-names (pyfun)
+    (destructuring-bind (function-name args) (cdr expression)
+      (split-args args
+		  (lambda (unnamed-args named-args)
+		    `(burgled-batteries::with-cpython-pointer 
+			 (,pyfun (burgled-batteries::%get-function ,function-name))
+		       (burgled-batteries::object.call* 
+			,pyfun 
+			,unnamed-args
+			,named-args)))))))
 
 (defmethod compile-expression% ((type (eql :method-call)) expression)
-  (destructuring-bind (object method-name args) (cdr expression)
-    (multiple-value-bind (unnamed-args named-args) (split-args args)
-      (if named-args
-          (alexandria:with-unique-names (kwargs pyfun)
-            `(let ((,kwargs (make-hash-table)))
-               ,@(loop for named-arg in named-args
-                    collect
-                      `(setf (gethash ,(second named-arg) ,kwargs)
-                             ,(compile-expression (third named-arg))))
-               (burgled-batteries::with-cpython-pointer 
-		   (,pyfun
-		    (burgled-batteries::object.get-attr-string*
-		     ,(compile-expression object)
-		     ,method-name))
-                 (burgled-batteries::object.call* 
-		  ,pyfun 
-		  (list ,@(mapcar #'compile-expression unnamed-args))
-		  ,kwargs))))
-          `(call*
-            ,(compile-expression object)
-            ,method-name
-            ,@(mapcar #'compile-expression args))))))
+  (alexandria:with-unique-names (pyfun)
+    (destructuring-bind (object method-name args) (cdr expression)
+      (split-args args
+		  (lambda (unnamed-args named-args)
+		    `(burgled-batteries::with-cpython-pointer 
+			 (,pyfun
+			  (burgled-batteries::object.get-attr-string*
+			   ,(compile-expression object)
+			   ,method-name))
+		       (burgled-batteries::object.call* 
+			,pyfun 
+			,unnamed-args
+			,named-args)))))))
 
 (defmethod compile-expression% ((type (eql :property-access)) expression)
   (destructuring-bind (object property) (cdr expression)

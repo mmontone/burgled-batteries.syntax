@@ -97,6 +97,15 @@
   (lift:ensure-same
    (esrap:parse 'python.syntax::kwarg "x=2")
    '(:NAMED-ARG "x" (:LITERAL-INTEGER 2)))
+  (lift:ensure-same
+   (esrap:parse 'python.syntax::kwargs-splice "**$kwargs")
+   '(:KWARGS-SPLICE (:LISP-REFERENCE "$kwargs")))
+  (lift:ensure-same
+   (esrap:parse 'python.syntax::args-splice "*$args")
+   '(:ARGS-SPLICE (:LISP-REFERENCE "$args")))
+  (lift:ensure-same
+   (esrap:parse 'python.syntax::args-list "(x,y)")
+   '((:PYTHON-REFERENCE "x") (:PYTHON-REFERENCE "y")))
   (lift:ensure-same (esrap:parse 'python.syntax::args-list "(x=2)")
                     '((:NAMED-ARG "x" (:LITERAL-INTEGER 2))))
   (lift:ensure-same (esrap:parse 'python.syntax::args-list "(x, y=2)")
