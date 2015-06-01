@@ -401,11 +401,15 @@
                     collect
                       `(setf (gethash ,(second arg) ,kwargs)
                              ,(compile-expression (third arg))))
-               (burgled-batteries::with-cpython-pointer (,pyfun (burgled-batteries::%get-function ,function-name))
-                 (burgled-batteries::object.call* ,pyfun (list ,@(mapcar #'compile-expression unnamed-args))
-                                       ,kwargs))))
-          `(burgled-batteries::pyapply* ,function-name
-                             ,@(mapcar #'compile-expression unnamed-args))))))
+               (burgled-batteries::with-cpython-pointer 
+		   (,pyfun (burgled-batteries::%get-function ,function-name))
+                 (burgled-batteries::object.call* 
+		  ,pyfun 
+		  (list ,@(mapcar #'compile-expression unnamed-args))
+		  ,kwargs))))
+          `(burgled-batteries::pyapply* 
+	    ,function-name
+	    ,@(mapcar #'compile-expression unnamed-args))))))
 
 (defmethod compile-expression% ((type (eql :method-call)) expression)
   (destructuring-bind (object method-name args) (cdr expression)
@@ -417,12 +421,15 @@
                     collect
                       `(setf (gethash ,(second named-arg) ,kwargs)
                              ,(compile-expression (third named-arg))))
-               (burgled-batteries::with-cpython-pointer (,pyfun
-                                              (burgled-batteries::object.get-attr-string*
-                                               ,(compile-expression object)
-                                               ,method-name))
-                 (burgled-batteries::object.call* ,pyfun (list ,@(mapcar #'compile-expression unnamed-args))
-                                       ,kwargs))))
+               (burgled-batteries::with-cpython-pointer 
+		   (,pyfun
+		    (burgled-batteries::object.get-attr-string*
+		     ,(compile-expression object)
+		     ,method-name))
+                 (burgled-batteries::object.call* 
+		  ,pyfun 
+		  (list ,@(mapcar #'compile-expression unnamed-args))
+		  ,kwargs))))
           `(call*
             ,(compile-expression object)
             ,method-name
