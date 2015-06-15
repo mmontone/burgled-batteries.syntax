@@ -461,9 +461,12 @@
 		   ,kwargs))))))
 	(t
 	 ;; All arguments are simple unnamed parameters
-	 `(burgled-batteries::pyapply* 
-	   ,function-name
-	   ,@(mapcar #'compile-expression args)))))))
+	 `(burgled-batteries::with-cpython-pointer 
+	      (,pyfun (burgled-batteries::%get-function ,function-name))
+	    (burgled-batteries::object.call*
+	     ,pyfun 
+	     (list ,@(mapcar #'compile-expression args))
+	     (make-hash-table))))))))
 
 (defmethod compile-expression% ((type (eql :method-call)) expression)
   (alexandria:with-unique-names (pyfun)
