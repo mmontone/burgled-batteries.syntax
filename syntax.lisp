@@ -370,7 +370,7 @@
 
 (defmethod compile-expression% ((type (eql :literal-list)) expression)
   (alexandria:with-unique-names (list)
-    `(let ((,list (burgled-batteries::list.new* ,(length (second expression)))))
+    `(let ((,list (burgled-batteries::list.new* 0)))
        ,@(loop for item in (second expression)
             collect `(burgled-batteries::list.append ,list ,(compile-expression item)))
        ,list)))
