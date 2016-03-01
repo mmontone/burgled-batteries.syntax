@@ -1,5 +1,8 @@
 # burgled-batteries.syntax
 
+[![Quicklisp](http://quickdocs.org/badge/burgled-batteries.syntax.svg)](http://quickdocs.org/burgled-batteries.syntax/)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 This library provides Embedded Python syntax for burgled-batteries
 
 To enable the syntax:
